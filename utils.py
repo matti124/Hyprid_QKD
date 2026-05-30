@@ -22,6 +22,13 @@ def sifting(Angles_A, Angles_B, Results_A, Results_B):
 
 
 def test_CHSH(Angles_A, Angles_B, Results_A, Results_B):
+    #Coppie di angoli fondamentali per calcolare metrica
+    coppie_chsh = [
+        (0.0, math.pi / 4),
+        (0.0, 3 * math.pi / 4),
+        (math.pi / 2, math.pi / 4),
+        (math.pi / 2, 3 * math.pi / 4)
+    ]
     # 1. Convertiamo i bit classici in spin fisici (+1 e -1), dunque se bit era 0 -> 1 mentre 1 -> -1
     spins_A = [1 if r == 0 else -1 for r in Results_A]
     spins_B = [1 if r == 0 else -1 for r in Results_B]
@@ -35,15 +42,15 @@ def test_CHSH(Angles_A, Angles_B, Results_A, Results_B):
         ang_A = Angles_A[i]
         ang_B = Angles_B[i]
         coppia = (ang_A, ang_B)
+        if coppia in coppie_chsh:
+            prodotto = spins_A[i] * spins_B[i]
 
-        prodotto = spins_A[i] * spins_B[i]
+            if coppia not in somma_prodotti: #se coppia di angoli non presente l'aggiungo
+                somma_prodotti[coppia] = 0
+                conteggi[coppia] = 0
 
-        if coppia not in somma_prodotti: #se coppia di angoli non presente l'aggiungo
-            somma_prodotti[coppia] = 0
-            conteggi[coppia] = 0
-
-        somma_prodotti[coppia] += prodotto #somma di +1 e -1
-        conteggi[coppia] += 1 #numero di occorrenze di quella coppia
+            somma_prodotti[coppia] += prodotto #somma di +1 e -1
+            conteggi[coppia] += 1 #numero di occorrenze di quella coppia
 
     # 3. Calcoliamo il Valore di Aspettazione (E) per ogni coppia
     E = {}
@@ -53,12 +60,12 @@ def test_CHSH(Angles_A, Angles_B, Results_A, Results_B):
     # 4. Estraiamo le 4 medie usando la libreria math pura
     try:
         E_1 = E.get((0, math.pi / 4), 0)
-        E_2 = E.get((0, -math.pi / 4), 0)
+        E_2 = E.get((0, 3 * math.pi / 4), 0)
         E_3 = E.get((math.pi / 2, math.pi / 4), 0)
-        E_4 = E.get((math.pi / 2, -math.pi / 4), 0)
+        E_4 = E.get((math.pi / 2, 3 * math.pi / 4), 0)
 
         # 5. La Formula di CHSH
-        S = E_1 + E_2 + E_3 - E_4
+        S = E_1 - E_2 + E_3 + E_4
 
         return abs(S)
 

@@ -15,6 +15,7 @@ class AliceProtocol(NodeProtocol):
         super().__init__(node=node)
         self.num_qubits = num_qubits
         self.angles=[0, math.pi/2, math.pi/4]
+
         self.results_list=[]
         self.angles_list=[]
    

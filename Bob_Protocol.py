@@ -14,8 +14,9 @@ class BobProtocol(NodeProtocol):
         self.num_qubits = num_qubits
         
         # Gli angoli di Bob per l'E91 (diversi da quelli di Alice!)
-        self.angles = [math.pi/4, -math.pi/4, 0]
-        
+        self.angles = [math.pi / 4, 3 * math.pi / 4, math.pi / 2]
+
+
         self.results_list = []
         self.angles_list = []
 
