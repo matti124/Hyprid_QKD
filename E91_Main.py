@@ -17,9 +17,9 @@ from Charlie_Protocol import CharlieProtocol
 from Alice_Protocol import AliceProtocol
 from Bob_Protocol import BobProtocol
 
-from sifting import sifting
+from utils import sifting, test_CHSH
 
-
+NUM_QUBITS=1000
 def E91_run_sim():
 
 #Definizione della connessione tra nodi:
@@ -64,9 +64,9 @@ def E91_run_sim():
     charlie.ports['qout_B'].connect(Qchannel_C2B.ports['send'])
 
 # TEST
-    charlie_prot=CharlieProtocol(charlie, 50,100)
-    alice_prot=AliceProtocol(alice, 50)
-    bob_prot=BobProtocol(bob,50) 
+    charlie_prot=CharlieProtocol(charlie, NUM_QUBITS,100)
+    alice_prot=AliceProtocol(alice, NUM_QUBITS)
+    bob_prot=BobProtocol(bob,NUM_QUBITS)
 
     
     alice_prot.start()
@@ -83,6 +83,15 @@ def E91_run_sim():
     keyA,keyB=sifting(alice_prot.angles_list, bob_prot.angles_list, alice_prot.results_list, bob_prot.results_list)
 
     print(f"\n\nChiavi finali ottenute: \n Chiave Alice-> [{keyA}] \n Chiave Bob-> [{keyB}]" )
+
+
+    valore_S = test_CHSH(
+    alice_prot.angles_list,
+    bob_prot.angles_list,
+    alice_prot.results_list,
+    bob_prot.results_list
+)
+    print(f"\n\nValore CHSH (S) calcolato: {round(valore_S, 3)}")
 
 if __name__=="__main__":
     E91_run_sim()
