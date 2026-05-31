@@ -2,8 +2,14 @@ import netsquid as ns
 from netsquid.nodes import Node
 from netsquid.components.qmemory import QuantumMemory
 from netsquid.components.qchannel import QuantumChannel
-#<<<<<<< HEAD
+
 from oqs import oqs
+import os
+import numpy as np
+
+from cryptography.hazmat.primitives.kdf.hkdf import HKDF
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 from Charlie_Protocol import CharlieProtocol
 from Alice_Protocol import AliceProtocol
@@ -194,7 +200,49 @@ def E91_run_sim():
     print(f"SEGRETO CONDIVISO PQC ALICE: {shared_secret_alice.hex()}")
     print("=" * 40)
 
+    print(f"ALICE DERIVA LA CHIAVE IBRIDA")
+    salt = os.urandom(32)
+
+    hkdf = HKDF(
+    algorithm=hashes.SHA384(),
+    length=32,
+    salt=salt,
+    info=b"QKD-PQC-KEM-v1"
+    )   
     
+    final_keyA_byte = np.packbits(final_keyA).tobytes()
+    session_key_alice = hkdf.derive(shared_secret_alice + final_keyA_byte)
+
+    print(f"BOB DERIVA LA CHIAVE IBRIDA")
+
+    hkdf = HKDF(
+    algorithm=hashes.SHA384(),
+    length=32,
+    salt=salt,
+    info=b"QKD-PQC-KEM-v1"
+    )   
+    
+    final_keyB_byte = np.packbits(final_keyB).tobytes()
+    session_key_bob = hkdf.derive(shared_secret_bob + final_keyB_byte)
+
+    print("\n" + "=" * 40)
+    print(f"CHIAVE IBRIDA DI SESSIONE DERIVATA CON SUCCESSO")
+    print(f"CHIAVE IBRIDA DI BOB: {session_key_bob.hex()}")
+    print(f"CHIAVE IBRIDA DI ALICE: {session_key_alice.hex()}")
+    print("=" * 40)
+
+    print("INIZIALIZZO AES_GCM")
+    aesgcm = AESGCM(session_key_bob)
+    nonce = os.urandom(12) 
+    ciphertext = aesgcm.encrypt(nonce, "Buonasera Prof. Esposito! Saluti da Jacopo e Mattia, studenti del corso di TQS".encode("utf-8"), None)
+    
+    aesgcmALICE = AESGCM(session_key_alice)
+    plaintext = aesgcm.decrypt(nonce, ciphertext, None)
+
+    print("\n" + "=" * 40)
+    print(f"MESSAGGIO CIFRATO: {ciphertext.hex()}")
+    print(f"MESSAGGIO DECIFRATO: {plaintext.decode("utf-8")}")
+    print("=" * 40)
 
 if __name__ == "__main__":
     E91_run_sim()
