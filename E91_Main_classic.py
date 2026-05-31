@@ -14,14 +14,18 @@ DESIDERED_KEY_LENGTH = 128
 
 
 def setup_network():
+    # 1. definizione dei modelli di errore e dei canali per topologia di rete
     q_error_A = FibreLossModel(p_loss_init=0.05, p_loss_length=0.45)
     q_error_B = FibreLossModel(p_loss_init=0.05, p_loss_length=0.45)
     depolar_noise = DepolarNoiseModel(depolar_rate=0.9)
 
-    q_ch_A = QuantumChannel("C-->A", length=10, models={"quantum_loss_model": q_error_A, "quantum_noise_model": depolar_noise})
-    q_ch_B = QuantumChannel("C-->B", length=10, models={"quantum_loss_model": q_error_B, "quantum_noise_model": depolar_noise})
-    # 2. Nodo Alice
+    q_ch_A = QuantumChannel("C-->A", length=10,
+                            models={"quantum_loss_model": q_error_A, "quantum_noise_model": depolar_noise})
+    q_ch_B = QuantumChannel("C-->B", length=10,
+                            models={"quantum_loss_model": q_error_B, "quantum_noise_model": depolar_noise})
 
+
+    # 2. Nodo Alice
     mem_A = QuantumMemory("AliceMemory", num_positions=1)
     node_A = Node("Alice", port_names=['qin'], qmemory=mem_A)
     node_A.ports['qin'].forward_input(node_A.qmemory.ports['qin'])
@@ -39,6 +43,7 @@ def setup_network():
     node_C.ports['qout_B'].connect(q_ch_B.ports['send'])
 
     return node_A, node_B, node_C
+
 
 def E91_run_sim():
     node_A, node_B, node_C = setup_network()
@@ -61,7 +66,7 @@ def E91_run_sim():
         charlie_prot = CharlieProtocol(node_C, NUM_QUBITS, 100)
 
         # Avvio
-        alice_prot  .start()
+        alice_prot.start()
         bob_prot.start()
         charlie_prot.start()
         ns.sim_run()
