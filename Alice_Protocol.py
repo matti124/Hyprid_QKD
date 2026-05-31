@@ -15,20 +15,24 @@ class AliceProtocol(NodeProtocol):
         super().__init__(node=node)
         self.num_qubits = num_qubits
         self.angles=[0, math.pi/2, math.pi/4]
-
+        self.index_list=[] # Lista fondamentale per mantenimento degli indici dei qubit ricevuti
         self.results_list=[]
         self.angles_list=[]
    
     def run(self):
         for i in range(self.num_qubits):
-            # 1. ATTESA EVENTO: Alice si mette in pausa finché non entra 
-            #    qualcosa nella porta 'qin' della sua memoria
+            # 1. ATTESA EVENTO: Alice si mette in pausa finché non entra qubit
             yield self.await_port_input(self.node.qmemory.ports['qin'])
             
             # 2. ESTRAZIONE: Prendiamo il qubit dalla posizione 0 della memoria
-            # Usiamo pop(0) invece di peek(0) così la memoria si svuota!
             qubit, = self.node.qmemory.pop(0)
-            
+
+            # SALVATAGGIO DELL'INDICE, sfruttiamo il tempo di simulazione per effettivamente ottenere indice, ad esempio
+            # ns.sim_time=900ns --> indice: 900/100=9 sarebbe nono qubit, questo perchè Charlie settato con intervallo di
+            # inoltro a 100ns
+            indice = round(ns.sim_time() / 100)
+            self.index_list.append(indice)
+
             # STAMPA: Controlliamo il qubit e a che istante di tempo è arrivato
             # print(f"[T={ns.sim_time()} ns] ALICE ha ricevuto: {qubit[0]}")
 
@@ -39,5 +43,5 @@ class AliceProtocol(NodeProtocol):
             result,prob =ns.qubits.measure(qubit)
             self.results_list.append(result)
             self.angles_list.append(theta)
-        
+        print(f"Tempo arrivo: {ns.sim_time()}, indice calcolato: {round(ns.sim_time() / 100)}")
         print(f"\n\n[ALICE] Qubit {i} | Base: {self.angles_list}\n | Risultato: {self.results_list}")

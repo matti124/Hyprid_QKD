@@ -16,7 +16,7 @@ class BobProtocol(NodeProtocol):
         # Gli angoli di Bob per l'E91 (diversi da quelli di Alice!)
         self.angles = [math.pi / 4, 3 * math.pi / 4, math.pi / 2]
 
-
+        self.index_list = []
         self.results_list = []
         self.angles_list = []
 
@@ -27,7 +27,8 @@ class BobProtocol(NodeProtocol):
 
             # 2. ESTRAZIONE: Prendiamo il qubit dalla memoria
             qubit, = self.node.qmemory.pop(0)
-
+            indice = round(ns.sim_time() / 100)
+            self.index_list.append(indice)
             # 3. SCELTA DELLA BASE E ROTAZIONE
             chosen_basis = random.randint(0, 2)
             theta = self.angles[chosen_basis]
