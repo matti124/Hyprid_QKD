@@ -2,15 +2,17 @@ import netsquid as ns
 from netsquid.nodes import Node
 from netsquid.components.qmemory import QuantumMemory
 from netsquid.components.qchannel import QuantumChannel
+from oqs import oqs
 
 from Charlie_Protocol import CharlieProtocol
 from Alice_Protocol import AliceProtocol
 from Bob_Protocol import BobProtocol
+from signature_wrapper import SignatureWrapper
 from utils import sifting, test_CHSH
 
 # Costanti
 NUM_QUBITS = 1
-DESIDERED_KEY_LENGTH = 128
+DESIDERED_KEY_LENGTH = 256
 
 
 def setup_network():                    
@@ -87,11 +89,75 @@ def E91_run_sim():
     # Test CHSH finale su tutto il campione accumulato
     valore_S = test_CHSH(all_anglesA, all_anglesB, all_measA, all_measB)
 
+    ML_DSA = "ML-DSA-87"
+    ML_KEM = "ML-KEM-1024"
+
     print("\n" + "=" * 40)
     print(f"CHIAVE GENERATA: {len(final_keyA)} bit")
     print(f"VALORE CHSH FINALE: {round(valore_S, 3)}")
     print("=" * 40)
 
+    generatorMLKEMBOB = oqs.KeyEncapsulation("ML-KEM-1024")
+    generatorMLDSABOB = oqs.Signature("ML-DSA-87")
+    ml_kem_bob_pk = generatorMLKEMBOB.generate_keypair()
+    ml_kem_bob_sk = generatorMLKEMBOB.export_secret_key()
+
+    ml_dsa_bob_pk = generatorMLDSABOB.generate_keypair()
+    ml_dsa_bob_sk = generatorMLDSABOB.export_secret_key()
+
+    print("\n" + "=" * 40)
+    print(f"CHIAVE PUBBLICA ML-KEM DI BOB :{len(ml_kem_bob_pk)} Byte")
+    print(f"CHIAVE PUBBLICA ML-DSA DI BOB :{len(ml_dsa_bob_pk)} Byte")
+    print("=" * 40)
+    
+    generatorMLDSAALICE = oqs.Signature("ML-DSA-87")
+    generatorMLKEMALICE = oqs.KeyEncapsulation(ML_KEM)
+    ml_dsa_alice_pk = generatorMLDSAALICE.generate_keypair()
+    ml_dsa_alice_sk = generatorMLDSAALICE.export_secret_key()
+    
+    print("\n" + "=" * 40)
+    print(f"CHIAVA PUBBLICA ML-DSA DI ALICE :{len(ml_dsa_alice_pk)} Byte")
+    print(f"INIZIO PRTOCOLLO DI SCAMBIO CHIAVI PQC")
+    print("=" * 40)
+
+    print(f"BOB FIRMA LA SUA CHIAVE PUBBLICA ML-KEM con ML-DSA")
+    err, signature = SignatureWrapper.sign(ML_DSA, ml_dsa_bob_sk, ml_kem_bob_pk)
+    if err != None:
+        print(err)
+        return
+
+    print("ALICE RICEVE LA CHIAVE PUBBLICA DI BOB E NE VERIFICA LA FIRMA")
+    verified_result = SignatureWrapper.verify(ML_DSA, ml_dsa_bob_pk, signature, ml_kem_bob_pk)
+
+    if verified_result == False:
+        print("MITM DURANTE LA FASE DI SCAMBIO CHIAVI PQC! COMUNICAZIONE INTERROTTA\n")
+        return
+    
+    cipher_text, shared_secret_alice = generatorMLKEMALICE.encap_secret(ml_kem_bob_pk)
+
+    print("ALICE FIRMA DIGITALMENTE IL CIPHERTEXT PRIMA DI INVIARLO")
+    
+    err, signature_ciphertext = SignatureWrapper.sign(ML_DSA, ml_dsa_alice_sk, cipher_text)
+    if err != None:
+        print(err)
+        return
+
+    print("BOB RICEVE IL CIPHERTEX E NE VERIFICA LA FIRMA")
+    verified_result = SignatureWrapper.verify(ML_DSA, ml_dsa_alice_pk, signature_ciphertext, cipher_text)
+
+    if verified_result == False:
+        print("MITM DURANTE LA FASE DI SCAMBIO CHIAVI PQC! COMUNICAZIONE INTERROTTA\n")
+        return
+
+    shared_secret_bob = generatorMLKEMBOB.decap_secret(cipher_text)
+
+    print("\n" + "=" * 40)
+    print(f"SCAMBIO CHIAVI PQC FRA ALICE E BOB ULTIMATO CON SUCCESSO")
+    print(f"SEGRETO CONDIVISO PQC BOB: {shared_secret_bob.hex()}")
+    print(f"SEGRETO CONDIVISO PQC ALICE: {shared_secret_alice.hex()}")
+    print("=" * 40)
+
+    
 
 if __name__ == "__main__":
     E91_run_sim()
