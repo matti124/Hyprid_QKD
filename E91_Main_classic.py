@@ -2,8 +2,9 @@ import netsquid as ns
 from netsquid.nodes import Node
 from netsquid.components.qmemory import QuantumMemory
 from netsquid.components.qchannel import QuantumChannel
+from netsquid.components.models.qerrormodels import DepolarNoiseModel, FibreLossModel
 
-from oqs import oqs
+import oqs
 import os
 import numpy as np
 
@@ -15,22 +16,11 @@ from Charlie_Protocol import CharlieProtocol
 from Alice_Protocol import AliceProtocol
 from Bob_Protocol import BobProtocol
 from signature_wrapper import SignatureWrapper
-from utils import sifting, test_CHSH
-
-# Costanti
-NUM_QUBITS = 1
-DESIDERED_KEY_LENGTH = 256
-
-from netsquid.components.models.qerrormodels import DepolarNoiseModel, FibreLossModel
-from Charlie_Protocol import CharlieProtocol
-from Alice_Protocol import AliceProtocol
-from Bob_Protocol import BobProtocol
 from utils import sifting, test_CHSH, sifting_powered, test_CHSH_powered
 
 # Costanti di configurazione
 NUM_QUBITS = 5000
 DESIDERED_KEY_LENGTH = 128
-
 
 
 def setup_network():
@@ -43,7 +33,6 @@ def setup_network():
                             models={"quantum_loss_model": q_error_A, "quantum_noise_model": depolar_noise})
     q_ch_B = QuantumChannel("C-->B", length=10,
                             models={"quantum_loss_model": q_error_B, "quantum_noise_model": depolar_noise})
-
 
     # 2. Nodo Alice
     mem_A = QuantumMemory("AliceMemory", num_positions=1)
@@ -119,7 +108,6 @@ def E91_run_sim():
     # Test CHSH finale su tutto il campione accumulato
     valore_S = test_CHSH_powered(all_anglesA, all_anglesB, all_measA, all_measB, all_indicesA, all_indicesB)
 
-
     ML_DSA = "ML-DSA-87"
     ML_KEM = "ML-KEM-1024"
 
@@ -144,7 +132,6 @@ def E91_run_sim():
     print(f"CHIAVE BOB:   {final_keyB}")
     print("=" * 50)
 
-
     generatorMLKEMBOB = oqs.KeyEncapsulation("ML-KEM-1024")
     generatorMLDSABOB = oqs.Signature("ML-DSA-87")
     ml_kem_bob_pk = generatorMLKEMBOB.generate_keypair()
@@ -157,12 +144,12 @@ def E91_run_sim():
     print(f"CHIAVE PUBBLICA ML-KEM DI BOB :{len(ml_kem_bob_pk)} Byte")
     print(f"CHIAVE PUBBLICA ML-DSA DI BOB :{len(ml_dsa_bob_pk)} Byte")
     print("=" * 40)
-    
+
     generatorMLDSAALICE = oqs.Signature("ML-DSA-87")
     generatorMLKEMALICE = oqs.KeyEncapsulation(ML_KEM)
     ml_dsa_alice_pk = generatorMLDSAALICE.generate_keypair()
     ml_dsa_alice_sk = generatorMLDSAALICE.export_secret_key()
-    
+
     print("\n" + "=" * 40)
     print(f"CHIAVA PUBBLICA ML-DSA DI ALICE :{len(ml_dsa_alice_pk)} Byte")
     print(f"INIZIO PRTOCOLLO DI SCAMBIO CHIAVI PQC")
@@ -180,11 +167,11 @@ def E91_run_sim():
     if verified_result == False:
         print("MITM DURANTE LA FASE DI SCAMBIO CHIAVI PQC! COMUNICAZIONE INTERROTTA\n")
         return
-    
+
     cipher_text, shared_secret_alice = generatorMLKEMALICE.encap_secret(ml_kem_bob_pk)
 
     print("ALICE FIRMA DIGITALMENTE IL CIPHERTEXT PRIMA DI INVIARLO")
-    
+
     err, signature_ciphertext = SignatureWrapper.sign(ML_DSA, ml_dsa_alice_sk, cipher_text)
     if err != None:
         print(err)
@@ -209,24 +196,24 @@ def E91_run_sim():
     salt = os.urandom(32)
 
     hkdf = HKDF(
-    algorithm=hashes.SHA384(),
-    length=32,
-    salt=salt,
-    info=b"QKD-PQC-KEM-v1"
-    )   
-    
+        algorithm=hashes.SHA384(),
+        length=32,
+        salt=salt,
+        info=b"QKD-PQC-KEM-v1"
+    )
+
     final_keyA_byte = np.packbits(final_keyA).tobytes()
     session_key_alice = hkdf.derive(shared_secret_alice + final_keyA_byte)
 
     print(f"BOB DERIVA LA CHIAVE IBRIDA")
 
     hkdf = HKDF(
-    algorithm=hashes.SHA384(),
-    length=32,
-    salt=salt,
-    info=b"QKD-PQC-KEM-v1"
-    )   
-    
+        algorithm=hashes.SHA384(),
+        length=32,
+        salt=salt,
+        info=b"QKD-PQC-KEM-v1"
+    )
+
     final_keyB_byte = np.packbits(final_keyB).tobytes()
     session_key_bob = hkdf.derive(shared_secret_bob + final_keyB_byte)
 
@@ -238,16 +225,19 @@ def E91_run_sim():
 
     print("INIZIALIZZO AES_GCM")
     aesgcm = AESGCM(session_key_bob)
-    nonce = os.urandom(12) 
-    ciphertext = aesgcm.encrypt(nonce, "Buonasera Prof. Esposito! Saluti da Jacopo e Mattia, studenti del corso di TQS".encode("utf-8"), None)
-    
+    nonce = os.urandom(12)
+    ciphertext = aesgcm.encrypt(nonce,
+                                "Buonasera Prof. Esposito! Saluti da Jacopo e Mattia, studenti del corso di TQS".encode(
+                                    "utf-8"), None)
+
     aesgcmALICE = AESGCM(session_key_alice)
-    plaintext = aesgcm.decrypt(nonce, ciphertext, None)
+    plaintext = aesgcmALICE.decrypt(nonce, ciphertext, None)  # FIX: usato aesgcmALICE invece di aesgcm
 
     print("\n" + "=" * 40)
     print(f"MESSAGGIO CIFRATO: {ciphertext.hex()}")
-    print(f"MESSAGGIO DECIFRATO: {plaintext.decode("utf-8")}")
+    print(f"MESSAGGIO DECIFRATO: {plaintext.decode('utf-8')}")  # FIX: virgolette singole dentro f-string
     print("=" * 40)
+
 
 if __name__ == "__main__":
     E91_run_sim()

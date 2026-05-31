@@ -1,4 +1,4 @@
-from oqs import oqs 
+import oqs
 
 import hashlib
 

@@ -70,7 +70,6 @@ def E91_run_sim():
     all_eve_angles = []
     iteration = 0
 
-    eve_prot = None  # FIX: inizializzato prima del loop per renderlo accessibile dopo
 
     print(f"Inizio trasmissione. Obiettivo: {DESIDERED_KEY_LENGTH} bit.\n")
 
