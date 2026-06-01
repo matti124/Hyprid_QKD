@@ -12,7 +12,7 @@ from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
-from Charlie_Protocol import CharlieProtocol
+from Charlie_Protocol import CharlieProtocolClassic
 from Alice_Protocol import AliceProtocol
 from Bob_Protocol import BobProtocol
 from signature_wrapper import SignatureWrapper
@@ -25,8 +25,8 @@ STEP_DURATION = 50000  # Nanosecondi di simulazione per ogni batch (50.000 ns = 
 
 def setup_network():
     # 1. Definizione modelli e canali
-    q_error_A = FibreLossModel(p_loss_init=0.5, p_loss_length=0.45)
-    q_error_B = FibreLossModel(p_loss_init=0.5, p_loss_length=0.45)
+    q_error_A = FibreLossModel(p_loss_init=0.4, p_loss_length=0.45)
+    q_error_B = FibreLossModel(p_loss_init=0.4, p_loss_length=0.45)
     depolar_noise = DepolarNoiseModel(depolar_rate=0.4)
 
     q_ch_A = QuantumChannel("C-->A", length=10,
@@ -95,7 +95,7 @@ def E91_run_sim():
     # Inizializzazione protocolli
     alice_prot = AliceProtocol(node_A)
     bob_prot = BobProtocol(node_B)
-    charlie_prot = CharlieProtocol(node_C, interval=100)
+    charlie_prot = CharlieProtocolClassic(node_C, interval=100)
 
 
     alice_prot.start()
