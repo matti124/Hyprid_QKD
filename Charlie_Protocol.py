@@ -13,16 +13,15 @@ from netsquid.protocols import NodeProtocol
 
 class CharlieProtocol(NodeProtocol):
     
-    def __init__(self,node, num_qubits, interval):
+    def __init__(self,node, interval):
         super().__init__(node=node)
-        self.num_qubits=num_qubits
-        self.interval=interval 
+        self.interval=interval
         self.port_C2A=self.node.ports['qout_A']
         self.port_C2B=self.node.ports['qout_B']
         #self.port_C2E=self.node.ports['qout_E'] # per simulazione di MitM
 
     def run(self):
-        for i in range (self.num_qubits):
+        while True:
             qA,qB=ns.qubits.create_qubits(2)
 
             ns.qubits.operate(qA, ns.H)   
@@ -31,7 +30,7 @@ class CharlieProtocol(NodeProtocol):
             ns.qubits.operate(qB, ns.Z)
 
             self.port_C2A.tx_output(qA)
-            #self.port_C2E.tx_output(qA) #quando si vuole simulare presenza di Eve
+           # self.port_C2E.tx_output(qA) #quando si vuole simulare presenza di Eve
             self.port_C2B.tx_output(qB)
 
 

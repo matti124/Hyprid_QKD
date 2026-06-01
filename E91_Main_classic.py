@@ -16,18 +16,18 @@ from Charlie_Protocol import CharlieProtocol
 from Alice_Protocol import AliceProtocol
 from Bob_Protocol import BobProtocol
 from signature_wrapper import SignatureWrapper
-from utils import sifting, test_CHSH, sifting_powered, test_CHSH_powered
+from utils import sifting_powered, test_CHSH_powered
 
 # Costanti di configurazione
-NUM_QUBITS = 5000
 DESIDERED_KEY_LENGTH = 128
+STEP_DURATION = 50000  # Nanosecondi di simulazione per ogni batch (50.000 ns = 500 qubit generati)
 
 
 def setup_network():
-    # 1. definizione dei modelli di errore e dei canali per topologia di rete
-    q_error_A = FibreLossModel(p_loss_init=0.05, p_loss_length=0.45)
-    q_error_B = FibreLossModel(p_loss_init=0.05, p_loss_length=0.45)
-    depolar_noise = DepolarNoiseModel(depolar_rate=0.9)
+    # 1. Definizione modelli e canali
+    q_error_A = FibreLossModel(p_loss_init=0.5, p_loss_length=0.45)
+    q_error_B = FibreLossModel(p_loss_init=0.5, p_loss_length=0.45)
+    depolar_noise = DepolarNoiseModel(depolar_rate=0.4)
 
     q_ch_A = QuantumChannel("C-->A", length=10,
                             models={"quantum_loss_model": q_error_A, "quantum_noise_model": depolar_noise})
@@ -54,83 +54,117 @@ def setup_network():
     return node_A, node_B, node_C
 
 
+
+
+# NUOVA LOGICA DI ESECUZIONE:
+ # PRIMA:
+ # Veniva dato un numero di qubits totale e i protocolli lavoravano in funzione di esso, ovvero:
+ #  - Charlie: ogni tot tempo mandava coppia di qubit entanglati fin quando non mandava esattamente NUM_QUBITS
+ #  - Alice e Bob: effettuavano le loro operazioni di misurazioni aspettando input da Charlie fin quando non misuravano NUM_QUBITS
+ #  - Eve: stessa logica di Alice e Bob
+ # Problema: se batch di qubits su cui iterare era piccolo e quindi per computare chiave di lunghezza desiderata vi era bisogno di
+ #          più iterazioni, si creava una discrepanza tra indici, in quanto ogni qualvolta si terminava computazione su quel batch
+ #          nel main vi era necessità di resettare simulazione affinché si potessero avviare nuovamente i protocolli
+ #          Questo reset andava ovviamente ad azzerare timer di simulazione, che risulta essere fondamentale per computazione degli
+ #          indici dei qubit ricevuti dai soggetti.
+ #          Dunque si andava a riscrivere sopra gli indici già presenti ottenendo inconsistenza, ciò incideva particolarmente sul test
+ #          CHSH dove si otteneva score bassissimo quando si sceglieva size del Batch bassa.
+ #
+ # DOPO:
+ # Per risolvere problematica si è cambiato approccio, piuttosto che ragionare in funzione di batch, per computazione della chiave desiderata
+ # facciamo scorrere tempo di simulazione a step predefiniti, per fare ciò sono stati modificati anche i protocoll in modo tale che
+ # essi continuino ciclo di computazione finché non vengono stoppati dal main una volta raggiunta chiave di lunghezza desiderata, in
+ # questo modo senza dover fare reset e senza dover computare un numero immenso di qubit rispetto a quanti effettivamente ce ne servono
+ # riusciamo mantenere consistente valori delle liste e dunque un valore di CHSH accurato
+
+
+
+
 def E91_run_sim():
+    ns.sim_reset()
     node_A, node_B, node_C = setup_network()
 
+    # Liste globali per raccogliere tutti i dati e fare il CHSH finale
     final_keyA, final_keyB = [], []
     all_anglesA, all_anglesB = [], []
     all_measA, all_measB = [], []
     all_indicesA, all_indicesB = [], []
+
+    print(f"Inizio trasmissione continua in tempo reale. Obiettivo: {DESIDERED_KEY_LENGTH} bit.\n")
+
+    # Inizializzazione protocolli
+    alice_prot = AliceProtocol(node_A)
+    bob_prot = BobProtocol(node_B)
+    charlie_prot = CharlieProtocol(node_C, interval=100)
+
+
+    alice_prot.start()
+    bob_prot.start()
+    charlie_prot.start()
+
     iteration = 0
 
-    print(f"Inizio trasmissione. Obiettivo: {DESIDERED_KEY_LENGTH} bit.\n")
-
+    # Ciclo di estrazione dati dinamica
     while len(final_keyA) < DESIDERED_KEY_LENGTH:
-        # Reset della linea temporale
-        ns.sim_reset()
+        iteration += 1
 
-        # Inizializzazione protocolli
-        alice_prot = AliceProtocol(node_A, NUM_QUBITS)
-        bob_prot = BobProtocol(node_B, NUM_QUBITS)
-        charlie_prot = CharlieProtocol(node_C, NUM_QUBITS, 100)
+        # Facciamo avanzare l'orologio della simulazione dello STEP definito
+        ns.sim_run(duration=STEP_DURATION)
 
-        # Avvio
-        alice_prot.start()
-        bob_prot.start()
-        charlie_prot.start()
-        ns.sim_run()
-        print(f"Alice: {len(alice_prot.results_list)} qubit")
-        print(f"Bob: {len(bob_prot.results_list)} qubit")
+        # Estraiamo i buffer dai nodi e li svuotiamo in tempo reale
+        idxA, resA, angA = alice_prot.get_and_clear_buffers()
+        idxB, resB, angB = bob_prot.get_and_clear_buffers()
 
-        # Elaborazione risultati
-        keyA_batch, keyB_batch = sifting_powered(
-            alice_prot.angles_list, bob_prot.angles_list,
-            alice_prot.results_list, bob_prot.results_list,
-            alice_prot.index_list, bob_prot.index_list
-        )
+        # Facciamo il sifting solo sui qubit di questo batch
+        keyA_batch, keyB_batch = sifting_powered(angA, angB, resA, resB, idxA, idxB)
 
+        # Accumuliamo i risultati per la chiave finale
         final_keyA.extend(keyA_batch)
         final_keyB.extend(keyB_batch)
-        all_anglesA.extend(alice_prot.angles_list)
-        all_anglesB.extend(bob_prot.angles_list)
-        all_measA.extend(alice_prot.results_list)
-        all_measB.extend(bob_prot.results_list)
-        all_indicesA.extend(alice_prot.index_list)
-        all_indicesB.extend(bob_prot.index_list)
 
-        iteration += 1
-        print(f"Giro {iteration}: Estratti {len(final_keyA)}/{DESIDERED_KEY_LENGTH} bit.")
+        # Accumuliamo i dati grezzi per il calcolo statistico del CHSH finale
+        all_indicesA.extend(idxA)
+        all_measA.extend(resA)
+        all_anglesA.extend(angA)
 
-    # Taglio finale alla lunghezza desiderata
+        all_indicesB.extend(idxB)
+        all_measB.extend(resB)
+        all_anglesB.extend(angB)
+
+        print(
+            f"Scatto {iteration} [{ns.sim_time():.0f} ns] - Chiave accumulata: {len(final_keyA)}/{DESIDERED_KEY_LENGTH} bit.")
+
+    # Obiettivo raggiunto
+    alice_prot.stop()
+    bob_prot.stop()
+    charlie_prot.stop()
+
+    # Calcolo CHSH globale su tutti i fotoni registrati
+    valore_S = test_CHSH_powered(all_anglesA, all_anglesB, all_measA, all_measB, all_indicesA, all_indicesB)
+
+    # Taglio finale
     final_keyA = final_keyA[:DESIDERED_KEY_LENGTH]
     final_keyB = final_keyB[:DESIDERED_KEY_LENGTH]
 
-    # Test CHSH finale su tutto il campione accumulato
-    valore_S = test_CHSH_powered(all_anglesA, all_anglesB, all_measA, all_measB, all_indicesA, all_indicesB)
-
-    ML_DSA = "ML-DSA-87"
-    ML_KEM = "ML-KEM-1024"
-
-    print("\n" + "=" * 40)
-    print(f"CHIAVE GENERATA: {len(final_keyA)} bit")
-    print(f"VALORE CHSH FINALE: {round(valore_S, 3)}")
-    print("=" * 40)
-
-    # ==========================================
-    # Calcolo del QBER (Quantum Bit Error Rate)
-    # ==========================================
+    # QBER
     errori = sum(1 for a, b in zip(final_keyA, final_keyB) if a != b)
     qber_percentuale = (errori / DESIDERED_KEY_LENGTH) * 100
 
     print("\n" + "=" * 50)
-    print("REPORT FINALE TRASMISSIONE")
+    print("REPORT FINALE TRASMISSIONE QKD")
     print("=" * 50)
-    print(f"VALORE CHSH: {round(valore_S, 3)} (Sicurezza superata se >= 2.0)")
-    print(f"QBER:        {round(qber_percentuale, 2)}% (Errori nella chiave)")
+    print(f"VALORE CHSH:       {round(valore_S, 3)} (Sicurezza superata se >= 2.0)")
+    print(f"QBER:              {round(qber_percentuale, 2)}% (Errori nella chiave)")
     print("-" * 50)
     print(f"CHIAVE ALICE: {final_keyA}")
     print(f"CHIAVE BOB:   {final_keyB}")
     print("=" * 50)
+
+    # ===========================
+    # INIZIO FASE PQC
+    # ===========================
+    ML_DSA = "ML-DSA-87"
+    ML_KEM = "ML-KEM-1024"
 
     generatorMLKEMBOB = oqs.KeyEncapsulation("ML-KEM-1024")
     generatorMLDSABOB = oqs.Signature("ML-DSA-87")
@@ -228,14 +262,15 @@ def E91_run_sim():
     nonce = os.urandom(12)
     ciphertext = aesgcm.encrypt(nonce,
                                 "Buonasera Prof. Esposito! Saluti da Jacopo e Mattia, studenti del corso di TQS".encode(
-                                    "utf-8"), None)
+                                    "utf-8"),
+                                None)
 
     aesgcmALICE = AESGCM(session_key_alice)
-    plaintext = aesgcmALICE.decrypt(nonce, ciphertext, None)  # FIX: usato aesgcmALICE invece di aesgcm
+    plaintext = aesgcmALICE.decrypt(nonce, ciphertext, None)
 
     print("\n" + "=" * 40)
     print(f"MESSAGGIO CIFRATO: {ciphertext.hex()}")
-    print(f"MESSAGGIO DECIFRATO: {plaintext.decode('utf-8')}")  # FIX: virgolette singole dentro f-string
+    print(f"MESSAGGIO DECIFRATO: {plaintext.decode('utf-8')}")
     print("=" * 40)
 
 

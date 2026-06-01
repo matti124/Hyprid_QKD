@@ -9,10 +9,9 @@ def RY(theta):
 
 class BobProtocol(NodeProtocol):
     
-    def __init__(self, node, num_qubits):
+    def __init__(self, node):
         super().__init__(node=node)
-        self.num_qubits = num_qubits
-        
+
         # Gli angoli di Bob per l'E91 (diversi da quelli di Alice!)
         self.angles = [math.pi / 4, 3 * math.pi / 4, math.pi / 2]
 
@@ -21,7 +20,7 @@ class BobProtocol(NodeProtocol):
         self.angles_list = []
 
     def run(self):
-        for i in range(self.num_qubits):
+        while True:
             # 1. ATTESA EVENTO
             yield self.await_port_input(self.node.qmemory.ports['qin'])
 
@@ -45,5 +44,12 @@ class BobProtocol(NodeProtocol):
             self.angles_list.append(theta)
 
             # 6. STAMPA A SCHERMO
-        print(f"\n\n[BOB] Qubit {i} | Base: {self.angles_list}\n | Risultato: {self.results_list}")
-
+            print(f"\n\n[BOB] {indice} Base : {self.angles_list}\n | Risultato: {self.results_list}")
+    
+    def get_and_clear_buffers(self):
+        """Metodo per estrarre i dati raccolti finora e svuotare i buffer"""
+        data = (self.index_list.copy(), self.results_list.copy(), self.angles_list.copy())
+        self.index_list.clear()
+        self.results_list.clear()
+        self.angles_list.clear()
+        return data

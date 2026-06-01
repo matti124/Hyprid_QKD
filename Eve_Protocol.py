@@ -13,9 +13,8 @@ import random
 
 
 class EveProtocol(NodeProtocol):
-    def __init__(self, node, num_qubits):
+    def __init__(self, node):
         super().__init__(node=node)
-        self.num_qubits=num_qubits
         self.angles = [0, math.pi/2, math.pi/4]
         self.port_E2A=self.node.ports['qout_A']
         self.results_list=[]
@@ -23,7 +22,7 @@ class EveProtocol(NodeProtocol):
         self.index_list=[]
 
     def run(self):
-        for i in range (self.num_qubits):
+        while True:
             yield self.await_port_input(self.node.qmemory.ports['qin'])
 
             qubit_stolen, = self.node.qmemory.pop(0)
@@ -51,7 +50,12 @@ class EveProtocol(NodeProtocol):
 
             ns.qubits.operate(fake_qubit, ops.create_rotation_op(theta, (0,1,0)))
 
-            self.port_E2A.tx_output(fake_qubit) 
+            self.port_E2A.tx_output(fake_qubit)
 
-
-
+    def get_and_clear_buffers(self):
+        """Metodo per il master script per analizzare i dati rubati da Eve e svuotare i buffer"""
+        data = (self.index_list.copy(), self.results_list.copy(), self.angles_list.copy())
+        self.index_list.clear()
+        self.results_list.clear()
+        self.angles_list.clear()
+        return data

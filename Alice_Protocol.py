@@ -11,16 +11,15 @@ import math
 #
 #Una volta finita questa parte, Alice e Bob si contattano tramite un canale classico per fare sifting e quindi scegliere bit della chiave 
 class AliceProtocol(NodeProtocol):
-    def __init__(self, node, num_qubits):
+    def __init__(self, node):
         super().__init__(node=node)
-        self.num_qubits = num_qubits
         self.angles=[0, math.pi/2, math.pi/4]
         self.index_list=[] # Lista fondamentale per mantenimento degli indici dei qubit ricevuti
         self.results_list=[]
         self.angles_list=[]
    
     def run(self):
-        for i in range(self.num_qubits):
+        while True:
             # 1. ATTESA EVENTO: Alice si mette in pausa finché non entra qubit
             yield self.await_port_input(self.node.qmemory.ports['qin'])
             
@@ -43,5 +42,13 @@ class AliceProtocol(NodeProtocol):
             result,prob =ns.qubits.measure(qubit)
             self.results_list.append(result)
             self.angles_list.append(theta)
-        print(f"Tempo arrivo: {ns.sim_time()}, indice calcolato: {round(ns.sim_time() / 100)}")
-        print(f"\n\n[ALICE] Qubit {i} | Base: {self.angles_list}\n | Risultato: {self.results_list}")
+            print(f"\n\n[ALICE] Qubit {indice} | Base: {self.angles_list}\n | Risultato: {self.results_list}")
+
+    
+    def get_and_clear_buffers(self):
+        """Metodo per estrarre i dati raccolti finora e svuotare i buffer"""
+        data = (self.index_list.copy(), self.results_list.copy(), self.angles_list.copy())
+        self.index_list.clear()
+        self.results_list.clear()
+        self.angles_list.clear()
+        return data
