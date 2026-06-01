@@ -102,6 +102,6 @@ python E91_Main_attacked.py
 
 ## Contributors
 
-<a href="https://github.com/matti124/Hyprid-QKD/graphs/contributors">
+[<a href="https://github.com/matti124/Hyprid-QKD/graphs/contributors">
   <img src="https://contrib.rocks/image?repo=matti124/Hyprid-QKD" />
-</a>
+</a>](https://github.com/matti124/Hyprid_QKD)
