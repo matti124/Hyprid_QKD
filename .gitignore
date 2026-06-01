@@ -3,4 +3,4 @@
 *.iml
 .venv/
 __pycache__/
-.python-version/
+.python-version
