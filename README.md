@@ -97,3 +97,11 @@ python E91_Main_attacked.py
 
 - **Time-Stepped Execution:** To prevent index inconsistencies during key sifting across multiple qubit batches, the simulation advances the NetSquid clock in predefined durations (`STEP_DURATION`). This ensures accurate qubit indexing for robust CHSH calculations.
 - **Educational Context:** This implementation is designed for academic demonstration of Quantum Networking and Security concepts, highlighting the synergy between quantum physics and post-quantum cryptography.
+
+---
+
+## Contributors
+
+<a href="https://github.com/matti124/Hyprid-QKD/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=matti124/Hyprid-QKD" />
+</a>
