@@ -1,3 +1,6 @@
 # IntelliJ / PyCharm
 .idea/
 *.iml
+.venv/
+__pycache__/
+.python-version/
