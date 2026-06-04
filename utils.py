@@ -16,7 +16,7 @@ def sifting(Angles_A, Angles_B, Results_A, Results_B):
             key_A.append(bit_A)
 
             bit_B = Results_B[i]
-            key_B.append(1 - bit_B)
+            key_B.append(1 - bit_B) # Consenguenza del tipo di entanglament che stiamo usando (vedi Charlie_Protocol.py)
 
     return key_A, key_B
 
