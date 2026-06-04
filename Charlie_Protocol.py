@@ -7,8 +7,7 @@ import netsquid as ns
 from netsquid.protocols import NodeProtocol
 
 
-#  - SIMULAZIONE CON EVE->  DA COMMENTARE RIGA 18 E 31
-#  - SIMULAZIONE CLASSICA-> DA COMMENTARE RIGA 20 E 32
+
 
 
 class CharlieProtocolClassic(NodeProtocol):
@@ -23,6 +22,9 @@ class CharlieProtocolClassic(NodeProtocol):
         while True:
             qA,qB=ns.qubits.create_qubits(2)
 
+#Usiamo come stato di bell per entanglament quello che veniva esattamente proposto da ekert ovvero lo stato singoletto, ciò ci garantisce che qualsiasi base di misurazione
+#viene usata dalle due parti, se è uguale allora sicuramente le due parti si troveranno bit opposto. Con gli altri stati di Bell questa proprietà di anti-simmetria non è garantita
+#Ciò comporta che in fase di sifting, dovremo invertire da una delle due parti il bit una volta che il confronto è andato a buon fine.
             ns.qubits.operate(qA, ns.H)   
             ns.qubits.operate([qA,qB], ns.CX)
             ns.qubits.operate(qB, ns.X)
